@@ -9,8 +9,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import org.apache.commons.codec.binary.Base64;
 import org.bouncycastle.crypto.BufferedBlockCipher;
-
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.PBEParametersGenerator;
 import org.bouncycastle.crypto.engines.AESFastEngine;
@@ -24,26 +24,28 @@ import org.bouncycastle.crypto.params.ParametersWithIV;
  */
 public class Crypto {
     static String salt = "Salted__";
-    static String[] words = {"a", "b", "c", "1", "2", "3"};
-
     static final int NUMBER_OF_ITERATIONS = 1;
     static final int KEY_LENGTH = 256;
     static final int IV_LENGTH = 128;
     static final int SALT_LENGTH = 8;
-
-    public static String readFileAsText (String fileName) throws FileNotFoundException, IOException {
-        BufferedReader file = new BufferedReader(new FileReader(fileName));
-        StringBuilder strBuilder = new StringBuilder();
-        strBuilder.append("");
+    
+    public byte[][] parseContent (String fileContent) {
+        int saltLen = Crypto.salt.length();
         
-        String line;
+        byte[] content = Base64.decodeBase64(fileContent);
+        byte[] bytesToDecode = new byte[content.length - saltLen];
         
-        while ((line = file.readLine()) != null) {
-            strBuilder.append(line);
-            strBuilder.append(System.getProperty("line.separator"));
-        }
+        System.arraycopy(content, saltLen, bytesToDecode, 0, content.length - saltLen);
         
-        return strBuilder.toString();
+        byte[] newSalt = new byte[saltLen];
+        
+        System.arraycopy(bytesToDecode, 0, newSalt, 0, saltLen);
+        
+        byte[] cipherBytes = new byte[bytesToDecode.length - saltLen];
+        System.arraycopy(bytesToDecode, saltLen, cipherBytes, 0, bytesToDecode.length - saltLen);
+        
+        return new byte[][]{newSalt, cipherBytes};
+        //System.out.println(calculate(Long.parseLong(start), Long.parseLong(finish), newSalt, cipherBytes));
     }
     
     public static CipherParameters getAESPasswordKey(char[] password, byte[] salt) throws Exception {
@@ -60,6 +62,7 @@ public class Crypto {
     }
     
     public static char[] convertToCharArray(String charSequence) {
+        // @TODO toCharArray
         if (charSequence == null) {
             return null;
         }
@@ -69,50 +72,6 @@ public class Crypto {
             charArray[i] = charSequence.charAt(i);
         }
         return charArray;
-    }
-    
-    /*public static char[] getNext (long index) {
-        String converted = Long.toString(index, words.length);
-        
-        int i = 0,
-                cLen = converted.length();
-        
-        char[] result = new char[cLen];
-        
-        for(;i < cLen;i++) {
-            result[i] = words[Integer.parseInt("" + converted.charAt(i), words.length)];
-        }
-        
-        return result;
-    }*/
-    
-    public static char [] getNext2 (long index) {
-        int wLen = words.length;
-        String buf = "";
-        int pos = 0;
-        boolean cont = true;
-        
-        while (cont) {
-            long base = index / wLen;
-            int oth = (int)(index % wLen);
-            
-            index = base;
-            
-            buf = words[oth] + buf;
-            
-            if (base <= 0) {
-                cont = false;
-            }
-        }
-        
-        int iLen = buf.length();
-        char[] result = new char[iLen];
-
-        for (int i = 0;i < iLen;i++) {
-            result[i] = buf.charAt(i);
-        }
-        
-        return result;
     }
     
     public static byte[] decrypt (char[] password, byte[] buffer, byte[] cipherBytes) throws Exception {
@@ -130,10 +89,5 @@ public class Crypto {
     
     public static byte[] decrypt (String password, byte[] buffer, byte[] cipherBytes) throws Exception {
         return decrypt(convertToCharArray(password), buffer, cipherBytes);
-    }
-    
-    public static String[] getWords () {
-        return words;
-    }
-    
+    }    
 }
